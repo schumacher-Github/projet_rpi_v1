@@ -14,16 +14,226 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      demandes: {
+        Row: {
+          commentaire_resolution: string | null
+          created_at: string
+          date_resolution: string | null
+          date_souhaitee: string | null
+          demandeur_id: string
+          description: string
+          id: string
+          infrastructure_id: string | null
+          priorite: Database["public"]["Enums"]["priorite_demande"]
+          reference: string
+          statut: Database["public"]["Enums"]["statut_demande"]
+          technicien_id: string | null
+          titre: string
+          updated_at: string
+        }
+        Insert: {
+          commentaire_resolution?: string | null
+          created_at?: string
+          date_resolution?: string | null
+          date_souhaitee?: string | null
+          demandeur_id: string
+          description: string
+          id?: string
+          infrastructure_id?: string | null
+          priorite?: Database["public"]["Enums"]["priorite_demande"]
+          reference?: string
+          statut?: Database["public"]["Enums"]["statut_demande"]
+          technicien_id?: string | null
+          titre: string
+          updated_at?: string
+        }
+        Update: {
+          commentaire_resolution?: string | null
+          created_at?: string
+          date_resolution?: string | null
+          date_souhaitee?: string | null
+          demandeur_id?: string
+          description?: string
+          id?: string
+          infrastructure_id?: string | null
+          priorite?: Database["public"]["Enums"]["priorite_demande"]
+          reference?: string
+          statut?: Database["public"]["Enums"]["statut_demande"]
+          technicien_id?: string | null
+          titre?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandes_infrastructure_id_fkey"
+            columns: ["infrastructure_id"]
+            isOneToOne: false
+            referencedRelation: "infrastructures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historique: {
+        Row: {
+          action: string
+          ancien_statut: Database["public"]["Enums"]["statut_demande"] | null
+          commentaire: string | null
+          created_at: string
+          demande_id: string
+          id: string
+          nouveau_statut: Database["public"]["Enums"]["statut_demande"] | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          ancien_statut?: Database["public"]["Enums"]["statut_demande"] | null
+          commentaire?: string | null
+          created_at?: string
+          demande_id: string
+          id?: string
+          nouveau_statut?: Database["public"]["Enums"]["statut_demande"] | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          ancien_statut?: Database["public"]["Enums"]["statut_demande"] | null
+          commentaire?: string | null
+          created_at?: string
+          demande_id?: string
+          id?: string
+          nouveau_statut?: Database["public"]["Enums"]["statut_demande"] | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historique_demande_id_fkey"
+            columns: ["demande_id"]
+            isOneToOne: false
+            referencedRelation: "demandes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      infrastructures: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          localisation: string | null
+          nom: string
+          type: Database["public"]["Enums"]["type_infrastructure"]
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          nom: string
+          type?: Database["public"]["Enums"]["type_infrastructure"]
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          nom?: string
+          type?: Database["public"]["Enums"]["type_infrastructure"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          matricule: string | null
+          nom: string
+          prenom: string
+          service: string | null
+          telephone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          matricule?: string | null
+          nom: string
+          prenom: string
+          service?: string | null
+          telephone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          matricule?: string | null
+          nom?: string
+          prenom?: string
+          service?: string | null
+          telephone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "chef_service" | "technicien" | "demandeur"
+      priorite_demande: "urgente" | "normale" | "planifiee"
+      statut_demande:
+        | "nouvelle"
+        | "assignee"
+        | "en_cours"
+        | "resolue"
+        | "cloturee"
+        | "rejetee"
+      type_infrastructure:
+        | "batiment"
+        | "quai"
+        | "entrepot"
+        | "reseau"
+        | "equipement"
+        | "autre"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +360,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "chef_service", "technicien", "demandeur"],
+      priorite_demande: ["urgente", "normale", "planifiee"],
+      statut_demande: [
+        "nouvelle",
+        "assignee",
+        "en_cours",
+        "resolue",
+        "cloturee",
+        "rejetee",
+      ],
+      type_infrastructure: [
+        "batiment",
+        "quai",
+        "entrepot",
+        "reseau",
+        "equipement",
+        "autre",
+      ],
+    },
   },
 } as const
