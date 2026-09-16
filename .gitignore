@@ -20,6 +20,10 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -30,3 +34,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets du déploiement conteneurisé
+.env
+.env.*
+!.env.example
+!.env.docker.example
+docker/nginx/certs/
