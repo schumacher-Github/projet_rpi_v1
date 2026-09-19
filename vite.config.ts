@@ -3,6 +3,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
+import { nitro } from "nitro/vite";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
@@ -43,6 +44,12 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
+      // Vercel compile l'application au moyen de Nitro, qui produit
+      // .vercel/output. Le greffon n'est activé que lorsque la variable
+      // VERCEL est présente, c'est-à-dire pendant une construction sur
+      // Vercel : en local et dans l'image Docker, la compilation reste
+      // celle qui produit dist/, servie par docker/serveur.mjs.
+      ...(process.env.VERCEL ? [nitro()] : []),
       viteReact(),
     ],
   };

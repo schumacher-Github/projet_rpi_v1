@@ -44,3 +44,8 @@ docker/nginx/certs/
 
 # Livrables produits hors application (mémoire, plan de soutenance)
 Claude outputs/
+
+# Sorties de construction Vercel / Nitro
+.vercel/
+.output/
+.nitro/

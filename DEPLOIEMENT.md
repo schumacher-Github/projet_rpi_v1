@@ -1,5 +1,9 @@
 # Déploiement de RPI-PAD
 
+> Ce document couvre l'installation en conteneurs sur un serveur du Port
+> Autonome de Douala. Pour la mise à disposition publique de l'application
+> sur Internet, voir `DEPLOIEMENT_CLOUD.md`.
+
 La plateforme se déploie en conteneurs sur un serveur du Port Autonome de
 Douala. Rien n'est publié sur Internet : seul le port HTTPS du frontal est
 exposé, et uniquement sur le réseau interne de l'établissement.
