@@ -1,0 +1,278 @@
+# Déploiement conteneurisé de la plateforme RPI-PAD
+# Régie du Patrimoine Immobilier — Port Autonome de Douala
+#
+# Cette pile reproduit sur un serveur du PAD l'architecture décrite au
+# chapitre « Déploiement » : un reverse proxy Nginx en frontal, l'application
+# TanStack Start rendue côté serveur, et la pile Supabase auto-hébergée
+# (passerelle Kong, GoTrue, PostgREST, Realtime, Edge Runtime) adossée à une
+# base PostgreSQL dont les données vivent dans un volume persistant.
+#
+#   cp .env.docker.example .env.docker   puis renseigner les secrets
+#   docker compose --env-file .env.docker up -d
+#
+# Les numéros de version des images suivent la référence de self-hosting
+# Supabase ; voir DEPLOIEMENT.md pour la procédure d'alignement.
+
+name: rpi-pad
+
+services:
+  # ── Frontal HTTPS ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: rpi-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+      kong:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/rpi.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - rpi-net
+
+  # ── Application ───────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${SUPABASE_PROJECT_ID:-rpi-pad}
+    image: rpi-pad/app:latest
+    container_name: rpi-app
+    restart: unless-stopped
+    depends_on:
+      kong:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Appels effectués côté serveur : directement vers Kong, sans repasser
+      # par le certificat public du frontal.
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+    expose:
+      - "3000"
+    networks:
+      - rpi-net
+
+  # ── Passerelle d'API ──────────────────────────────────────────────────
+  kong:
+    image: kong:2.8.1
+    container_name: rpi-kong
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_started
+      rest:
+        condition: service_started
+    # Kong ne remplace pas lui-même $ANON_KEY / $SERVICE_ROLE_KEY : le fichier
+    # modèle est monté en temp.yml, puis les variables sont substituées avant
+    # le démarrage pour produire le kong.yml réellement lu.
+    entrypoint: >
+      bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml
+      && /docker-entrypoint.sh kong docker-start'
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+    volumes:
+      - ./docker/kong/kong.yml:/home/kong/temp.yml:ro
+    expose:
+      - "8000"
+    networks:
+      - rpi-net
+
+  # ── Authentification ──────────────────────────────────────────────────
+  auth:
+    image: supabase/gotrue:v2.158.1
+    container_name: rpi-auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${PUBLIC_URL}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      GOTRUE_SITE_URL: ${PUBLIC_URL}
+      GOTRUE_URI_ALLOW_LIST: ${PUBLIC_URL}/**
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      # Le service ne dispose pas d'une messagerie sortante en interne :
+      # la confirmation d'adresse est désactivée, les comptes étant créés
+      # par des agents déjà identifiés sur le réseau du PAD.
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "true"
+      GOTRUE_PASSWORD_MIN_LENGTH: "8"
+    expose:
+      - "9999"
+    networks:
+      - rpi-net
+
+  # ── API REST sur la base ──────────────────────────────────────────────
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: rpi-rest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: 3600
+    command: ["postgrest"]
+    expose:
+      - "3000"
+    networks:
+      - rpi-net
+
+  # ── Diffusion temps réel (notifications) ──────────────────────────────
+  realtime:
+    image: supabase/realtime:v2.30.34
+    container_name: rpi-realtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: ${REALTIME_ENC_KEY}
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+    expose:
+      - "4000"
+    networks:
+      - rpi-net
+
+  # ── Fonctions Edge (envoi des notifications par courriel) ─────────────
+  functions:
+    image: supabase/edge-runtime:v1.58.2
+    container_name: rpi-functions
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_DB_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    volumes:
+      - ./supabase/functions:/home/deno/functions:ro
+      - ./docker/edge-main:/home/deno/main:ro
+    command:
+      - start
+      - --main-service
+      - /home/deno/main
+    expose:
+      - "9000"
+    networks:
+      - rpi-net
+
+  # ── Base de données ───────────────────────────────────────────────────
+  db:
+    image: supabase/postgres:15.8.1.060
+    container_name: rpi-db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - wal_level=logical
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: 3600
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - pg_sauvegardes:/sauvegardes
+      - ./docker/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
+    # La base n'est pas publiée sur l'hôte : elle n'est joignable que
+    # depuis le réseau interne rpi-net. Pour une session psql d'exploitation,
+    # utiliser « docker compose exec db psql -U postgres ».
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - rpi-net
+
+  # ── Application des migrations (service à exécution unique) ───────────
+  # Attend que GoTrue ait créé le schéma « auth », puis applique dans
+  # l'ordre les migrations du dépôt. Rejouable sans dommage : chaque
+  # migration déjà appliquée est ignorée.
+  migrations:
+    image: supabase/postgres:15.8.1.060
+    container_name: rpi-migrations
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./supabase/migrations:/migrations:ro
+      - ./docker/scripts/appliquer-migrations.sh:/appliquer-migrations.sh:ro
+    entrypoint: ["bash", "/appliquer-migrations.sh"]
+    networks:
+      - rpi-net
+
+networks:
+  rpi-net:
+    driver: bridge
+
+volumes:
+  pg_data:
+    name: rpi-pad_pg_data
+  pg_sauvegardes:
+    name: rpi-pad_pg_sauvegardes
