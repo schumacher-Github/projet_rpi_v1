@@ -17,6 +17,7 @@ export type Database = {
       demandes: {
         Row: {
           commentaire_resolution: string | null
+          cout_estime: number | null
           created_at: string
           date_resolution: string | null
           date_souhaitee: string | null
@@ -25,6 +26,7 @@ export type Database = {
           id: string
           infrastructure_id: string | null
           priorite: Database["public"]["Enums"]["priorite_demande"]
+          rapport_intervention: string | null
           reference: string
           statut: Database["public"]["Enums"]["statut_demande"]
           technicien_id: string | null
@@ -33,6 +35,7 @@ export type Database = {
         }
         Insert: {
           commentaire_resolution?: string | null
+          cout_estime?: number | null
           created_at?: string
           date_resolution?: string | null
           date_souhaitee?: string | null
@@ -41,6 +44,7 @@ export type Database = {
           id?: string
           infrastructure_id?: string | null
           priorite?: Database["public"]["Enums"]["priorite_demande"]
+          rapport_intervention?: string | null
           reference?: string
           statut?: Database["public"]["Enums"]["statut_demande"]
           technicien_id?: string | null
@@ -49,6 +53,7 @@ export type Database = {
         }
         Update: {
           commentaire_resolution?: string | null
+          cout_estime?: number | null
           created_at?: string
           date_resolution?: string | null
           date_souhaitee?: string | null
@@ -57,6 +62,7 @@ export type Database = {
           id?: string
           infrastructure_id?: string | null
           priorite?: Database["public"]["Enums"]["priorite_demande"]
+          rapport_intervention?: string | null
           reference?: string
           statut?: Database["public"]["Enums"]["statut_demande"]
           technicien_id?: string | null
@@ -69,6 +75,44 @@ export type Database = {
             columns: ["infrastructure_id"]
             isOneToOne: false
             referencedRelation: "infrastructures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          demande_id: string | null
+          id: string
+          lu: boolean
+          message: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          demande_id?: string | null
+          id?: string
+          lu?: boolean
+          message: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          demande_id?: string | null
+          id?: string
+          lu?: boolean
+          message?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_demande_id_fkey"
+            columns: ["demande_id"]
+            isOneToOne: false
+            referencedRelation: "demandes"
             referencedColumns: ["id"]
           },
         ]
@@ -215,6 +259,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      notifier_superviseurs: {
+        Args: {
+          _message: string
+          _demande_id?: string | null
+          _type?: string
+        }
+        Returns: number
       }
     }
     Enums: {

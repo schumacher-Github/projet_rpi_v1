@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PRIORITES, PRIORITE_LABELS, type Priorite } from "@/lib/rpi-helpers";
+import { notifySupervisors } from "@/lib/notifications";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/demandes/nouvelle")({
@@ -94,6 +95,14 @@ function NouvelleDemande() {
         action: "Demande créée",
         nouveau_statut: "nouvelle",
       });
+
+      // BF09 — notifie les chefs de service / administrateurs qu'une
+      // nouvelle demande attend une priorisation / affectation.
+      const prioriteLabel = PRIORITE_LABELS[parsed.data.priorite];
+      void notifySupervisors(
+        `Nouvelle demande (${prioriteLabel}) : ${parsed.data.titre}`,
+        data.id
+      );
     }
 
     setSubmitting(false);

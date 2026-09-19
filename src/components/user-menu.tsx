@@ -1,8 +1,9 @@
-import { useNavigate } from "@tanstack/react-router";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { LogOut, Monitor, Moon, Settings, Sun, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth, ROLE_LABELS } from "@/hooks/use-auth";
+import { useTheme, THEME_LABELS, type Theme } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,12 +11,22 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+const ICONES_THEME: Record<Theme, typeof Sun> = {
+  clair: Sun,
+  sombre: Moon,
+  systeme: Monitor,
+};
+
 export function UserMenu() {
   const { profile, roles, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
   if (!profile) return null;
@@ -52,6 +63,40 @@ export function UserMenu() {
           <div className="text-sm font-medium">{profile.prenom} {profile.nom}</div>
           <div className="text-xs text-muted-foreground font-normal">{profile.email}</div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem asChild>
+          <Link to="/parametres" className="cursor-pointer">
+            <Settings className="h-4 w-4 mr-2" />
+            Mon espace de travail
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {(() => {
+              const Icone = ICONES_THEME[theme];
+              return <Icone className="h-4 w-4 mr-2" />;
+            })()}
+            Apparence
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {(Object.keys(THEME_LABELS) as Theme[]).map((valeur) => {
+              const Icone = ICONES_THEME[valeur];
+              return (
+                <DropdownMenuItem
+                  key={valeur}
+                  onClick={() => setTheme(valeur)}
+                  className={theme === valeur ? "bg-accent" : undefined}
+                >
+                  <Icone className="h-4 w-4 mr-2" />
+                  {THEME_LABELS[valeur]}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onSignOut} className="text-destructive focus:text-destructive">
           <LogOut className="h-4 w-4 mr-2" />

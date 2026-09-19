@@ -7,11 +7,11 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ThemeProvider } from "@/hooks/use-theme";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -39,10 +39,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -94,12 +90,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:title", content: "RPI-PAD — Gestion des interventions techniques" },
-      { name: "description", content: "Parlez-vous Français? is a responsive web application for practicing French conversation." },
-      { property: "og:description", content: "Parlez-vous Français? is a responsive web application for practicing French conversation." },
-      { name: "twitter:description", content: "Parlez-vous Français? is a responsive web application for practicing French conversation." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7b4146bd-5d5c-4c32-b207-5599200f5367/id-preview-994c6a18--fc3b30ca-3bda-46f2-9f4b-ad9477447bda.lovable.app-1780990635073.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7b4146bd-5d5c-4c32-b207-5599200f5367/id-preview-994c6a18--fc3b30ca-3bda-46f2-9f4b-ad9477447bda.lovable.app-1780990635073.png" },
-      { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "twitter:description",
+        content:
+          "Centralisez, suivez et optimisez les interventions techniques sur les infrastructures du Port Autonome de Douala.",
+      },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
@@ -128,10 +124,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster richColors position="top-right" />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Outlet />
+          <Toaster richColors position="top-right" />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

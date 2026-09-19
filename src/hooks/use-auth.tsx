@@ -45,28 +45,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    let mounted = true;
+
+    const applySession = (sess: Session | null) => {
+      if (!mounted) return;
       setSession(sess);
       setUser(sess?.user ?? null);
-      if (sess?.user) {
-        setTimeout(() => void loadProfile(sess.user.id), 0);
-      } else {
+
+      if (!sess?.user) {
         setProfile(null);
         setRoles([]);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) {
-        void loadProfile(data.session.user.id).finally(() => setLoading(false));
-      } else {
         setLoading(false);
+        return;
       }
+
+      // Le client Supabase maintient un verrou interne pendant l'exécution
+      // du callback onAuthStateChange : y lancer directement une requête
+      // (ici le chargement du profil et des rôles) provoque un
+      // interblocage et l'application reste figée sur l'écran de
+      // chargement à chaque rafraîchissement de page. La requête est donc
+      // repoussée hors du callback.
+      const uid = sess.user.id;
+      setTimeout(() => {
+        if (!mounted) return;
+        void loadProfile(uid).finally(() => {
+          if (mounted) setLoading(false);
+        });
+      }, 0);
+    };
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      applySession(sess);
     });
 
-    return () => sub.subscription.unsubscribe();
+    void supabase.auth.getSession().then(({ data }) => applySession(data.session));
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const value: AuthContextValue = {

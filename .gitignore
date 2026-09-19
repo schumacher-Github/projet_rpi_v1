@@ -41,3 +41,6 @@ supabase/.temp/
 !.env.example
 !.env.docker.example
 docker/nginx/certs/
+
+# Livrables produits hors application (mémoire, plan de soutenance)
+Claude outputs/

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
@@ -33,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/demandes/")({
 });
 
 function DemandesList() {
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [statut, setStatut] = useState<Statut | "all">("all");
   const [priorite, setPriorite] = useState<Priorite | "all">("all");
@@ -149,7 +150,7 @@ function DemandesList() {
                       <tr
                         key={d.id}
                         className="border-t border-border hover:bg-accent/30 cursor-pointer"
-                        onClick={() => (window.location.href = `/demandes/${d.id}`)}
+                        onClick={() => navigate({ to: "/demandes/$id", params: { id: d.id } })}
                       >
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                           {d.reference}

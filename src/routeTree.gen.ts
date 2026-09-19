@@ -9,16 +9,37 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SecuriteRouteImport } from './routes/securite'
+import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
+import { Route as ConditionsRouteImport } from './routes/conditions'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUtilisateursRouteImport } from './routes/_authenticated/utilisateurs'
+import { Route as AuthenticatedParametresRouteImport } from './routes/_authenticated/parametres'
 import { Route as AuthenticatedInfrastructuresRouteImport } from './routes/_authenticated/infrastructures'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedInfrastructuresIndexRouteImport } from './routes/_authenticated/infrastructures.index'
 import { Route as AuthenticatedDemandesIndexRouteImport } from './routes/_authenticated/demandes.index'
+import { Route as AuthenticatedInfrastructuresIdRouteImport } from './routes/_authenticated/infrastructures.$id'
 import { Route as AuthenticatedDemandesNouvelleRouteImport } from './routes/_authenticated/demandes.nouvelle'
 import { Route as AuthenticatedDemandesIdRouteImport } from './routes/_authenticated/demandes.$id'
 
+const SecuriteRoute = SecuriteRouteImport.update({
+  id: '/securite',
+  path: '/securite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
+  id: '/confidentialite',
+  path: '/confidentialite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConditionsRoute = ConditionsRouteImport.update({
+  id: '/conditions',
+  path: '/conditions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -39,6 +60,11 @@ const AuthenticatedUtilisateursRoute =
     path: '/utilisateurs',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedParametresRoute = AuthenticatedParametresRouteImport.update({
+  id: '/parametres',
+  path: '/parametres',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInfrastructuresRoute =
   AuthenticatedInfrastructuresRouteImport.update({
     id: '/infrastructures',
@@ -50,11 +76,23 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInfrastructuresIndexRoute =
+  AuthenticatedInfrastructuresIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedInfrastructuresRoute,
+  } as any)
 const AuthenticatedDemandesIndexRoute =
   AuthenticatedDemandesIndexRouteImport.update({
     id: '/demandes/',
     path: '/demandes/',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInfrastructuresIdRoute =
+  AuthenticatedInfrastructuresIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedInfrastructuresRoute,
   } as any)
 const AuthenticatedDemandesNouvelleRoute =
   AuthenticatedDemandesNouvelleRouteImport.update({
@@ -71,77 +109,135 @@ const AuthenticatedDemandesIdRoute = AuthenticatedDemandesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/securite': typeof SecuriteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/infrastructures': typeof AuthenticatedInfrastructuresRoute
+  '/infrastructures': typeof AuthenticatedInfrastructuresRouteWithChildren
+  '/parametres': typeof AuthenticatedParametresRoute
   '/utilisateurs': typeof AuthenticatedUtilisateursRoute
   '/demandes/$id': typeof AuthenticatedDemandesIdRoute
   '/demandes/nouvelle': typeof AuthenticatedDemandesNouvelleRoute
+  '/infrastructures/$id': typeof AuthenticatedInfrastructuresIdRoute
   '/demandes/': typeof AuthenticatedDemandesIndexRoute
+  '/infrastructures/': typeof AuthenticatedInfrastructuresIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/securite': typeof SecuriteRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/infrastructures': typeof AuthenticatedInfrastructuresRoute
+  '/parametres': typeof AuthenticatedParametresRoute
   '/utilisateurs': typeof AuthenticatedUtilisateursRoute
   '/demandes/$id': typeof AuthenticatedDemandesIdRoute
   '/demandes/nouvelle': typeof AuthenticatedDemandesNouvelleRoute
+  '/infrastructures/$id': typeof AuthenticatedInfrastructuresIdRoute
   '/demandes': typeof AuthenticatedDemandesIndexRoute
+  '/infrastructures': typeof AuthenticatedInfrastructuresIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/conditions': typeof ConditionsRoute
+  '/confidentialite': typeof ConfidentialiteRoute
+  '/securite': typeof SecuriteRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/infrastructures': typeof AuthenticatedInfrastructuresRoute
+  '/_authenticated/infrastructures': typeof AuthenticatedInfrastructuresRouteWithChildren
+  '/_authenticated/parametres': typeof AuthenticatedParametresRoute
   '/_authenticated/utilisateurs': typeof AuthenticatedUtilisateursRoute
   '/_authenticated/demandes/$id': typeof AuthenticatedDemandesIdRoute
   '/_authenticated/demandes/nouvelle': typeof AuthenticatedDemandesNouvelleRoute
+  '/_authenticated/infrastructures/$id': typeof AuthenticatedInfrastructuresIdRoute
   '/_authenticated/demandes/': typeof AuthenticatedDemandesIndexRoute
+  '/_authenticated/infrastructures/': typeof AuthenticatedInfrastructuresIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/conditions'
+    | '/confidentialite'
+    | '/securite'
     | '/dashboard'
     | '/infrastructures'
+    | '/parametres'
     | '/utilisateurs'
     | '/demandes/$id'
     | '/demandes/nouvelle'
+    | '/infrastructures/$id'
     | '/demandes/'
+    | '/infrastructures/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/conditions'
+    | '/confidentialite'
+    | '/securite'
     | '/dashboard'
-    | '/infrastructures'
+    | '/parametres'
     | '/utilisateurs'
     | '/demandes/$id'
     | '/demandes/nouvelle'
+    | '/infrastructures/$id'
     | '/demandes'
+    | '/infrastructures'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/conditions'
+    | '/confidentialite'
+    | '/securite'
     | '/_authenticated/dashboard'
     | '/_authenticated/infrastructures'
+    | '/_authenticated/parametres'
     | '/_authenticated/utilisateurs'
     | '/_authenticated/demandes/$id'
     | '/_authenticated/demandes/nouvelle'
+    | '/_authenticated/infrastructures/$id'
     | '/_authenticated/demandes/'
+    | '/_authenticated/infrastructures/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ConditionsRoute: typeof ConditionsRoute
+  ConfidentialiteRoute: typeof ConfidentialiteRoute
+  SecuriteRoute: typeof SecuriteRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/securite': {
+      id: '/securite'
+      path: '/securite'
+      fullPath: '/securite'
+      preLoaderRoute: typeof SecuriteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confidentialite': {
+      id: '/confidentialite'
+      path: '/confidentialite'
+      fullPath: '/confidentialite'
+      preLoaderRoute: typeof ConfidentialiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conditions': {
+      id: '/conditions'
+      path: '/conditions'
+      fullPath: '/conditions'
+      preLoaderRoute: typeof ConditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -170,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUtilisateursRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/parametres': {
+      id: '/_authenticated/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof AuthenticatedParametresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/infrastructures': {
       id: '/_authenticated/infrastructures'
       path: '/infrastructures'
@@ -184,12 +287,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/infrastructures/': {
+      id: '/_authenticated/infrastructures/'
+      path: '/'
+      fullPath: '/infrastructures/'
+      preLoaderRoute: typeof AuthenticatedInfrastructuresIndexRouteImport
+      parentRoute: typeof AuthenticatedInfrastructuresRoute
+    }
     '/_authenticated/demandes/': {
       id: '/_authenticated/demandes/'
       path: '/demandes'
       fullPath: '/demandes/'
       preLoaderRoute: typeof AuthenticatedDemandesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/infrastructures/$id': {
+      id: '/_authenticated/infrastructures/$id'
+      path: '/$id'
+      fullPath: '/infrastructures/$id'
+      preLoaderRoute: typeof AuthenticatedInfrastructuresIdRouteImport
+      parentRoute: typeof AuthenticatedInfrastructuresRoute
     }
     '/_authenticated/demandes/nouvelle': {
       id: '/_authenticated/demandes/nouvelle'
@@ -208,9 +325,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedInfrastructuresRouteChildren {
+  AuthenticatedInfrastructuresIdRoute: typeof AuthenticatedInfrastructuresIdRoute
+  AuthenticatedInfrastructuresIndexRoute: typeof AuthenticatedInfrastructuresIndexRoute
+}
+
+const AuthenticatedInfrastructuresRouteChildren: AuthenticatedInfrastructuresRouteChildren =
+  {
+    AuthenticatedInfrastructuresIdRoute: AuthenticatedInfrastructuresIdRoute,
+    AuthenticatedInfrastructuresIndexRoute:
+      AuthenticatedInfrastructuresIndexRoute,
+  }
+
+const AuthenticatedInfrastructuresRouteWithChildren =
+  AuthenticatedInfrastructuresRoute._addFileChildren(
+    AuthenticatedInfrastructuresRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedInfrastructuresRoute: typeof AuthenticatedInfrastructuresRoute
+  AuthenticatedInfrastructuresRoute: typeof AuthenticatedInfrastructuresRouteWithChildren
+  AuthenticatedParametresRoute: typeof AuthenticatedParametresRoute
   AuthenticatedUtilisateursRoute: typeof AuthenticatedUtilisateursRoute
   AuthenticatedDemandesIdRoute: typeof AuthenticatedDemandesIdRoute
   AuthenticatedDemandesNouvelleRoute: typeof AuthenticatedDemandesNouvelleRoute
@@ -219,7 +354,9 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedInfrastructuresRoute: AuthenticatedInfrastructuresRoute,
+  AuthenticatedInfrastructuresRoute:
+    AuthenticatedInfrastructuresRouteWithChildren,
+  AuthenticatedParametresRoute: AuthenticatedParametresRoute,
   AuthenticatedUtilisateursRoute: AuthenticatedUtilisateursRoute,
   AuthenticatedDemandesIdRoute: AuthenticatedDemandesIdRoute,
   AuthenticatedDemandesNouvelleRoute: AuthenticatedDemandesNouvelleRoute,
@@ -233,6 +370,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ConditionsRoute: ConditionsRoute,
+  ConfidentialiteRoute: ConfidentialiteRoute,
+  SecuriteRoute: SecuriteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

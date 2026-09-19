@@ -82,59 +82,144 @@ function UtilisateursPage() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground">
+             <div className="py-12 text-center text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Chargement…
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="text-left px-4 py-3">Nom complet</th>
-                    <th className="text-left px-4 py-3 hidden md:table-cell">Email</th>
-                    <th className="text-left px-4 py-3 hidden lg:table-cell">Service</th>
-                    <th className="text-left px-4 py-3">Rôle</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data ?? []).map((u) => {
-                    const current = u.roles[0] ?? "demandeur";
-                    const isSelf = u.id === user?.id;
-                    return (
-                      <tr key={u.id} className="border-t border-border">
-                        <td className="px-4 py-3 font-medium">
-                          {u.prenom} {u.nom}
-                          {isSelf && <Badge variant="outline" className="ml-2 text-[10px]">Vous</Badge>}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{u.email}</td>
-                        <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{u.service ?? "—"}</td>
-                        <td className="px-4 py-3">
-                          <Select
-                            value={current}
-                            onValueChange={(v) => setRoleMut.mutate({ userId: u.id, role: v as AppRole })}
-                            disabled={isSelf}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ROLES.map((r) => (
-                                <SelectItem key={r} value={r}>
-                                  {ROLE_LABELS[r]}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="text-left px-4 py-3">Nom complet</th>
+                      <th className="text-left px-4 py-3">Email</th>
+                      <th className="text-left px-4 py-3 hidden lg:table-cell">Service</th>
+                      <th className="text-left px-4 py-3">Rôle</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data ?? []).map((u) => (
+                      <UserRow
+                        key={u.id}
+                        user={u}
+                        currentUserId={user?.id}
+                        onRoleChange={(role) => setRoleMut.mutate({ userId: u.id, role })}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="md:hidden divide-y divide-border">
+                {(data ?? []).map((u) => (
+                  <UserCard
+                    key={u.id}
+                    user={u}
+                    currentUserId={user?.id}
+                    onRoleChange={(role) => setRoleMut.mutate({ userId: u.id, role })}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+type AdminUser = {
+  id: string;
+  prenom: string;
+  nom: string;
+  email: string;
+  service: string | null;
+  roles: AppRole[];
+};
+
+function RoleSelect({
+  current,
+  disabled,
+  onRoleChange,
+}: {
+  current: AppRole;
+  disabled: boolean;
+  onRoleChange: (role: AppRole) => void;
+}) {
+  return (
+    <Select value={current} onValueChange={(v) => onRoleChange(v as AppRole)} disabled={disabled}>
+      <SelectTrigger className="w-full sm:w-[180px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {ROLES.map((r) => (
+          <SelectItem key={r} value={r}>
+            {ROLE_LABELS[r]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function UserRow({
+  user,
+  currentUserId,
+  onRoleChange,
+}: {
+  user: AdminUser;
+  currentUserId?: string;
+  onRoleChange: (role: AppRole) => void;
+}) {
+  const current = user.roles[0] ?? "demandeur";
+  const isSelf = user.id === currentUserId;
+
+  return (
+    <tr className="border-t border-border">
+      <td className="px-4 py-3 font-medium">
+        {user.prenom} {user.nom}
+        {isSelf && (
+          <Badge variant="outline" className="ml-2 text-[10px]">
+            Vous
+          </Badge>
+        )}
+      </td>
+      <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+      <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{user.service ?? "—"}</td>
+      <td className="px-4 py-3">
+        <RoleSelect current={current} disabled={isSelf} onRoleChange={onRoleChange} />
+      </td>
+    </tr>
+  );
+}
+
+function UserCard({
+  user,
+  currentUserId,
+  onRoleChange,
+}: {
+  user: AdminUser;
+  currentUserId?: string;
+  onRoleChange: (role: AppRole) => void;
+}) {
+  const current = user.roles[0] ?? "demandeur";
+  const isSelf = user.id === currentUserId;
+
+  return (
+    <div className="p-4 space-y-3">
+      <div>
+        <div className="font-medium">
+          {user.prenom} {user.nom}
+          {isSelf && (
+            <Badge variant="outline" className="ml-2 text-[10px]">
+              Vous
+            </Badge>
+          )}
+        </div>
+        <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
+        {user.service && <div className="text-xs text-muted-foreground mt-0.5">{user.service}</div>}
+      </div>
+      <RoleSelect current={current} disabled={isSelf} onRoleChange={onRoleChange} />
     </div>
   );
 }

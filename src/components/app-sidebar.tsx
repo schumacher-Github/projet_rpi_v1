@@ -6,6 +6,7 @@ import {
   Building2,
   Users,
   Anchor,
+  Settings,
 } from "lucide-react";
 
 import {
@@ -27,10 +28,15 @@ const mainItems = [
   { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard },
   { title: "Demandes", url: "/demandes", icon: ClipboardList },
   { title: "Nouvelle demande", url: "/demandes/nouvelle", icon: PlusCircle },
+  // Consultation ouverte à tous les rôles (module Historique par
+  // infrastructure, BF07) ; la gestion (ajout/suppression) reste réservée
+  // au chef de service / administrateur au sein de la page elle-même.
+  { title: "Infrastructures", url: "/infrastructures", icon: Building2 },
+  // Espace personnel : profil, mot de passe et préférences d'affichage.
+  { title: "Mon espace", url: "/parametres", icon: Settings },
 ];
 
 const adminItems = [
-  { title: "Infrastructures", url: "/infrastructures", icon: Building2 },
   { title: "Utilisateurs", url: "/utilisateurs", icon: Users },
 ];
 
@@ -38,9 +44,9 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { profile, roles, hasAnyRole } = useAuth();
+  const { profile, roles, hasRole } = useAuth();
 
-  const canManage = hasAnyRole(["admin", "chef_service"]);
+  const isAdmin = hasRole("admin");
   const isActive = (p: string) =>
     p === "/dashboard" ? pathname === p : pathname.startsWith(p);
   const primaryRole = roles[0];
@@ -84,7 +90,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {canManage && (
+        {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>

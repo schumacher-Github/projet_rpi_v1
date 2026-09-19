@@ -10,12 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PiedLegal } from "@/components/page-legale";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Connexion — RPI-PAD" },
-      { name: "description", content: "Connectez-vous à la plateforme RPI du Port Autonome de Douala." },
+      {
+        name: "description",
+        content: "Connectez-vous à la plateforme RPI du Port Autonome de Douala.",
+      },
     ],
   }),
   component: AuthPage,
@@ -70,7 +74,9 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setSubmitting(false);
     if (error) {
-      toast.error(error.message === "Invalid login credentials" ? "Identifiants invalides" : error.message);
+      toast.error(
+        error.message === "Invalid login credentials" ? "Identifiants invalides" : error.message,
+      );
       return;
     }
     toast.success("Connexion réussie");
@@ -91,7 +97,7 @@ function AuthPage() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
@@ -108,8 +114,12 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    toast.success("Compte créé. Vous êtes connecté.");
-    navigate({ to: "/dashboard" });
+    if (data.session) {
+      toast.success("Compte créé. Vous êtes connecté.");
+      navigate({ to: "/dashboard" });
+    } else {
+      toast.success("Compte créé. Consultez votre email pour confirmer votre inscription.");
+    }
   };
 
   return (
@@ -124,19 +134,19 @@ function AuthPage() {
             <Anchor className="h-7 w-7 text-gold-foreground" />
           </div>
           <div>
-            <div className="text-sm uppercase tracking-widest opacity-80">République du Cameroun</div>
+            <div className="text-sm uppercase tracking-widest opacity-80">
+              République du Cameroun
+            </div>
             <div className="font-semibold">Port Autonome de Douala</div>
           </div>
         </div>
 
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold leading-tight">
-            Gestion des interventions techniques
-          </h1>
+          <h1 className="text-4xl font-bold leading-tight">Gestion des interventions techniques</h1>
           <p className="mt-4 text-lg opacity-90 max-w-md">
-            Plateforme officielle de la Régie du Patrimoine Immobilier (RPI) pour
-            centraliser, suivre et optimiser les interventions sur les infrastructures du
-            Port Autonome de Douala.
+            Plateforme officielle de la Régie du Patrimoine Immobilier (RPI) pour centraliser,
+            suivre et optimiser les interventions sur les infrastructures du Port Autonome de
+            Douala.
           </p>
           <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
             {[
@@ -222,11 +232,21 @@ function AuthPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="s-prenom">Prénom</Label>
-                    <Input id="s-prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
+                    <Input
+                      id="s-prenom"
+                      value={prenom}
+                      onChange={(e) => setPrenom(e.target.value)}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="s-nom">Nom</Label>
-                    <Input id="s-nom" value={nom} onChange={(e) => setNom(e.target.value)} required />
+                    <Input
+                      id="s-nom"
+                      value={nom}
+                      onChange={(e) => setNom(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -267,12 +287,14 @@ function AuthPage() {
                   Créer mon compte
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Le rôle de demandeur est attribué par défaut. Un administrateur peut
-                  ensuite vous attribuer un rôle technicien ou chef de service.
+                  Le rôle de demandeur est attribué par défaut. Un administrateur peut ensuite vous
+                  attribuer un rôle technicien ou chef de service.
                 </p>
               </form>
             </TabsContent>
           </Tabs>
+
+          <PiedLegal className="mt-8" />
         </div>
       </div>
     </div>

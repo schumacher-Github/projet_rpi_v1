@@ -5,10 +5,20 @@ import {
   AlertOctagon,
   CheckCircle2,
   Clock,
+  Timer,
   TrendingUp,
   Wrench,
 } from "lucide-react";
 import { useMemo } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -20,6 +30,7 @@ import {
   prioriteBadgeClass,
   PRIORITE_LABELS,
   STATUT_LABELS,
+  STATUTS,
   statutBadgeClass,
   type Statut,
 } from "@/lib/rpi-helpers";
@@ -53,8 +64,37 @@ function Dashboard() {
     const resolues = byStatut("resolue") + byStatut("cloturee");
     const nouvelles = byStatut("nouvelle");
     const tauxResolution = total === 0 ? 0 : Math.round((resolues / total) * 100);
-    return { total, urgentes, enCours, resolues, nouvelles, tauxResolution };
+
+    // Délai moyen de résolution (en jours), calculé sur les demandes déjà
+    // clôturées/résolues qui portent une date_resolution.
+    const delais = demandes
+      .filter((d) => d.date_resolution)
+      .map(
+        (d) =>
+          (new Date(d.date_resolution!).getTime() - new Date(d.created_at).getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+    const delaiMoyen =
+      delais.length === 0 ? null : delais.reduce((a, b) => a + b, 0) / delais.length;
+
+    return { total, urgentes, enCours, resolues, nouvelles, tauxResolution, delaiMoyen };
   }, [demandes]);
+
+  // Répartition par statut, pour le graphique en barres (figure « Tableau
+  // de bord KPI » du mémoire).
+  const repartitionStatuts = useMemo(
+    () =>
+      STATUTS.map((s) => ({
+        statut: STATUT_LABELS[s],
+        total: demandes.filter((d) => d.statut === s).length,
+      })),
+    [demandes]
+  );
+
+  // Urgences actives : demandes de priorité "urgente" non encore closes.
+  const urgencesActives = demandes
+    .filter((d) => d.priorite === "urgente" && d.statut !== "cloturee" && d.statut !== "resolue")
+    .slice(0, 5);
 
   const recentes = demandes.slice(0, 6);
 
@@ -75,7 +115,7 @@ function Dashboard() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           title={canManage ? "Total demandes" : "Mes demandes"}
           value={kpis.total}
@@ -84,7 +124,7 @@ function Dashboard() {
           loading={isLoading}
         />
         <KpiCard
-          title="Urgentes"
+          title="Urgentes en attente"
           value={kpis.urgentes}
           icon={AlertOctagon}
           tone="destructive"
@@ -105,6 +145,13 @@ function Dashboard() {
           loading={isLoading}
         />
         <KpiCard
+          title="Délai moyen résolution"
+          value={kpis.delaiMoyen == null ? "—" : `${kpis.delaiMoyen.toFixed(1)} j`}
+          icon={Timer}
+          tone="info"
+          loading={isLoading}
+        />
+        <KpiCard
           title="Taux résolution"
           value={`${kpis.tauxResolution}%`}
           icon={CheckCircle2}
@@ -112,6 +159,69 @@ function Dashboard() {
           loading={isLoading}
         />
       </div>
+
+      {/* Répartition par statut + urgences actives */}
+      {canManage && (
+        <div className="grid lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Répartition par statut</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={repartitionStatuts}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                  <XAxis
+                    dataKey="statut"
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                    angle={-15}
+                    textAnchor="end"
+                    height={50}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip />
+                  {/* Les couleurs du thème sont déclarées en oklch (Tailwind v4) :
+                      on référence la variable telle quelle, sans wrapper hsl(). */}
+                  <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertOctagon className="h-4 w-4 text-destructive" />
+                Urgences actives
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {urgencesActives.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Aucune urgence en attente. 🎉
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {urgencesActives.map((d) => (
+                    <Link
+                      key={d.id}
+                      to="/demandes/$id"
+                      params={{ id: d.id }}
+                      className="block rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 hover:bg-destructive/10 transition-colors"
+                    >
+                      <div className="font-medium text-sm">{d.titre}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Depuis le {formatDate(d.created_at)} — {STATUT_LABELS[d.statut]}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Recent interventions */}
       <Card>
