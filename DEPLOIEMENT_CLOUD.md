@@ -18,12 +18,12 @@ présente. Aucune des deux compilations n'interfère avec l'autre.
 
 ## 1. Préparer le projet Supabase en ligne
 
-Le projet existe déjà : `vprpymvrozntlgaltkap`.
+Le projet existe déjà : `auitqfhzsgbfardzanum`.
 
 ```bash
 cd ~/projet_rpi
 npx supabase login                       # ouvre le navigateur
-npx supabase link --project-ref vprpymvrozntlgaltkap
+npx supabase link --project-ref auitqfhzsgbfardzanum
 npx supabase db push                     # applique supabase/migrations/
 ```
 
@@ -90,23 +90,27 @@ Le dépôt est déjà sur GitHub, Vercel s'y branche directement.
 2. **Add New → Project**, puis importer `schumacher-Github/projet_rpi_v1`.
 3. Laisser la détection automatique du cadre applicatif et de la commande de
    construction.
-4. Avant de valider, déplier **Environment Variables** et saisir les cinq
+4. Avant de valider, déplier **Environment Variables** et saisir les quatre
    entrées ci-dessous. Les valeurs se trouvent dans le tableau de bord
    Supabase, sous **Settings → API**.
 
 | Nom | Valeur | Rôle |
 | --- | --- | --- |
-| `VITE_SUPABASE_URL` | `https://vprpymvrozntlgaltkap.supabase.co` | Lue par le navigateur |
+| `VITE_SUPABASE_URL` | `https://auitqfhzsgbfardzanum.supabase.co` | Lue par le navigateur |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | clé `sb_publishable_…` | Lue par le navigateur |
 | `SUPABASE_URL` | même adresse | Lue par le rendu côté serveur |
 | `SUPABASE_PUBLISHABLE_KEY` | même clé publique | Lue par le rendu côté serveur |
-| `SUPABASE_SERVICE_ROLE_KEY` | clé `sb_secret_…` | Réservée au serveur |
 
-Les trois premières sont publiques par nature : la clé `publishable` est faite
-pour circuler dans le navigateur, les politiques RLS de la base étant ce qui
-protège réellement les données. La clé `sb_secret_…` en revanche contourne ces
-politiques : elle ne doit jamais porter le préfixe `VITE_`, qui la ferait
-figurer dans le code envoyé au navigateur.
+Ces quatre valeurs sont publiques par nature : la clé `publishable` est faite
+pour circuler dans le navigateur, et ce sont les politiques RLS de la base qui
+protègent réellement les données.
+
+Aucune clé secrète n'est nécessaire. Le client d'administration
+(`src/integrations/supabase/client.server.ts`, qui lirait
+`SUPABASE_SERVICE_ROLE_KEY`) n'est importé par aucun fichier de
+l'application : c'est un reliquat du gabarit de départ. La clé `sb_secret_…`
+ne doit donc être saisie nulle part — elle contourne les politiques RLS, et
+tout ce qui n'existe pas ne peut pas fuiter.
 
 5. Cliquer sur **Deploy**, puis attendre deux à trois minutes.
 6. Reporter l'adresse obtenue (`https://….vercel.app`) dans les réglages

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ClipboardList,
@@ -8,12 +8,14 @@ import {
   Timer,
   TrendingUp,
   Wrench,
+  ArrowUpRight,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -32,6 +34,7 @@ import {
   STATUT_LABELS,
   STATUTS,
   statutBadgeClass,
+  type Priorite,
   type Statut,
 } from "@/lib/rpi-helpers";
 
@@ -40,9 +43,50 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+/** Respecte le réglage système « réduire les animations ». */
+function useAnimationsReduites() {
+  const [reduites, setReduites] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const requete = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduites(requete.matches);
+    const surChangement = (e: MediaQueryListEvent) => setReduites(e.matches);
+    requete.addEventListener("change", surChangement);
+    return () => requete.removeEventListener("change", surChangement);
+  }, []);
+  return reduites;
+}
+
+/** Fait grimper un nombre de 0 jusqu'à sa valeur, en décélérant à l'arrivée. */
+function useCompteur(cible: number, actif: boolean, duree = 800) {
+  const [valeur, setValeur] = useState(actif ? 0 : cible);
+
+  useEffect(() => {
+    if (!actif) {
+      setValeur(cible);
+      return;
+    }
+    let debut: number | null = null;
+    let image = 0;
+    const etape = (horodatage: number) => {
+      if (debut === null) debut = horodatage;
+      const avancement = Math.min((horodatage - debut) / duree, 1);
+      const adouci = 1 - Math.pow(1 - avancement, 3);
+      setValeur(Math.round(cible * adouci));
+      if (avancement < 1) image = requestAnimationFrame(etape);
+    };
+    image = requestAnimationFrame(etape);
+    return () => cancelAnimationFrame(image);
+  }, [cible, actif, duree]);
+
+  return valeur;
+}
+
 function Dashboard() {
   const { profile, hasAnyRole } = useAuth();
+  const navigate = useNavigate();
   const canManage = hasAnyRole(["admin", "chef_service"]);
+  const animationsReduites = useAnimationsReduites();
 
   const { data: demandes = [], isLoading } = useQuery({
     queryKey: ["dashboard-demandes"],
@@ -59,7 +103,9 @@ function Dashboard() {
   const kpis = useMemo(() => {
     const total = demandes.length;
     const byStatut = (s: Statut) => demandes.filter((d) => d.statut === s).length;
-    const urgentes = demandes.filter((d) => d.priorite === "urgente" && d.statut !== "cloturee" && d.statut !== "resolue").length;
+    const urgentes = demandes.filter(
+      (d) => d.priorite === "urgente" && d.statut !== "cloturee" && d.statut !== "resolue"
+    ).length;
     const enCours = byStatut("en_cours") + byStatut("assignee");
     const resolues = byStatut("resolue") + byStatut("cloturee");
     const nouvelles = byStatut("nouvelle");
@@ -81,10 +127,12 @@ function Dashboard() {
   }, [demandes]);
 
   // Répartition par statut, pour le graphique en barres (figure « Tableau
-  // de bord KPI » du mémoire).
+  // de bord KPI » du mémoire). La clé brute accompagne le libellé afin que
+  // le clic sur une barre sache vers quel filtre renvoyer.
   const repartitionStatuts = useMemo(
     () =>
       STATUTS.map((s) => ({
+        cle: s,
         statut: STATUT_LABELS[s],
         total: demandes.filter((d) => d.statut === s).length,
       })),
@@ -98,9 +146,11 @@ function Dashboard() {
 
   const recentes = demandes.slice(0, 6);
 
+  const animer = !isLoading && !animationsReduites;
+
   return (
     <div className="space-y-6 max-w-7xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">
             Bonjour, {profile?.prenom} 👋
@@ -109,12 +159,13 @@ function Dashboard() {
             Vue d'ensemble des interventions techniques de la RPI.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="transition-transform hover:scale-[1.02] active:scale-95">
           <Link to="/demandes/nouvelle">Nouvelle demande</Link>
         </Button>
       </div>
 
-      {/* KPI cards */}
+      {/* Indicateurs. Chaque carte qui porte un lien ouvre la liste des
+          demandes déjà filtrée sur ce qu'elle compte. */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           title={canManage ? "Total demandes" : "Mes demandes"}
@@ -122,6 +173,10 @@ function Dashboard() {
           icon={ClipboardList}
           tone="primary"
           loading={isLoading}
+          animer={animer}
+          rang={0}
+          lien={{ to: "/demandes", search: {} }}
+          aide="Voir toutes les demandes"
         />
         <KpiCard
           title="Urgentes en attente"
@@ -129,6 +184,10 @@ function Dashboard() {
           icon={AlertOctagon}
           tone="destructive"
           loading={isLoading}
+          animer={animer}
+          rang={1}
+          lien={{ to: "/demandes", search: { priorite: "urgente" as Priorite } }}
+          aide="Voir les demandes urgentes"
         />
         <KpiCard
           title="En cours"
@@ -136,6 +195,10 @@ function Dashboard() {
           icon={Wrench}
           tone="gold"
           loading={isLoading}
+          animer={animer}
+          rang={2}
+          lien={{ to: "/demandes", search: { statut: "en_cours" as Statut } }}
+          aide="Voir les interventions en cours"
         />
         <KpiCard
           title="Nouvelles"
@@ -143,6 +206,10 @@ function Dashboard() {
           icon={Clock}
           tone="info"
           loading={isLoading}
+          animer={animer}
+          rang={3}
+          lien={{ to: "/demandes", search: { statut: "nouvelle" as Statut } }}
+          aide="Voir les demandes nouvelles"
         />
         <KpiCard
           title="Délai moyen résolution"
@@ -150,6 +217,8 @@ function Dashboard() {
           icon={Timer}
           tone="info"
           loading={isLoading}
+          animer={animer}
+          rang={4}
         />
         <KpiCard
           title="Taux résolution"
@@ -157,15 +226,22 @@ function Dashboard() {
           icon={CheckCircle2}
           tone="success"
           loading={isLoading}
+          animer={animer}
+          rang={5}
+          lien={{ to: "/demandes", search: { statut: "resolue" as Statut } }}
+          aide="Voir les demandes résolues"
         />
       </div>
 
       {/* Répartition par statut + urgences actives */}
       {canManage && (
         <div className="grid lg:grid-cols-2 gap-4">
-          <Card>
+          <Card className="animate-in fade-in slide-in-from-bottom-3 duration-500">
             <CardHeader>
               <CardTitle className="text-base">Répartition par statut</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Cliquez sur une barre pour filtrer la liste des demandes.
+              </p>
             </CardHeader>
             <CardContent className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -180,16 +256,41 @@ function Dashboard() {
                     height={50}
                   />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
+                  <Tooltip
+                    cursor={{ fill: "var(--accent)", opacity: 0.3 }}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      color: "var(--popover-foreground)",
+                      fontSize: 12,
+                    }}
+                  />
                   {/* Les couleurs du thème sont déclarées en oklch (Tailwind v4) :
                       on référence la variable telle quelle, sans wrapper hsl(). */}
-                  <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="total"
+                    fill="var(--primary)"
+                    radius={[4, 4, 0, 0]}
+                    isAnimationActive={!animationsReduites}
+                    animationDuration={700}
+                    className="cursor-pointer"
+                    onClick={(donnees: unknown) => {
+                      const entree = donnees as { payload?: { cle?: Statut } };
+                      const cle = entree?.payload?.cle;
+                      if (cle) navigate({ to: "/demandes", search: { statut: cle } });
+                    }}
+                  >
+                    {repartitionStatuts.map((entree) => (
+                      <Cell key={entree.cle} className="transition-opacity hover:opacity-80" />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <AlertOctagon className="h-4 w-4 text-destructive" />
@@ -208,7 +309,7 @@ function Dashboard() {
                       key={d.id}
                       to="/demandes/$id"
                       params={{ id: d.id }}
-                      className="block rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 hover:bg-destructive/10 transition-colors"
+                      className="block rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 transition-all duration-200 hover:bg-destructive/10 hover:translate-x-1 active:scale-[0.99]"
                     >
                       <div className="font-medium text-sm">{d.titre}</div>
                       <div className="text-xs text-muted-foreground mt-0.5">
@@ -223,8 +324,8 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Recent interventions */}
-      <Card>
+      {/* Demandes récentes */}
+      <Card className="animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
@@ -232,13 +333,17 @@ function Dashboard() {
               Demandes récentes
             </CardTitle>
           </div>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="transition-transform active:scale-95">
             <Link to="/demandes">Tout voir</Link>
           </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-sm text-muted-foreground py-8 text-center">Chargement…</div>
+            <div className="space-y-3 py-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-12 rounded-md bg-muted/50 animate-pulse" />
+              ))}
+            </div>
           ) : recentes.length === 0 ? (
             <div className="text-sm text-muted-foreground py-8 text-center">
               Aucune demande pour le moment.{" "}
@@ -253,7 +358,7 @@ function Dashboard() {
                   key={d.id}
                   to="/demandes/$id"
                   params={{ id: d.id }}
-                  className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 hover:bg-accent/40 -mx-3 px-3 rounded-md transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 -mx-3 px-3 rounded-md transition-all duration-200 hover:bg-accent/40 hover:translate-x-1 active:scale-[0.995]"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -282,18 +387,31 @@ function Dashboard() {
   );
 }
 
+type LienKpi =
+  | { to: "/demandes"; search: Record<string, never> }
+  | { to: "/demandes"; search: { statut: Statut } }
+  | { to: "/demandes"; search: { priorite: Priorite } };
+
 function KpiCard({
   title,
   value,
   icon: Icon,
   tone,
   loading,
+  animer,
+  rang,
+  lien,
+  aide,
 }: {
   title: string;
   value: number | string;
   icon: React.ComponentType<{ className?: string }>;
   tone: "primary" | "destructive" | "gold" | "info" | "success";
   loading?: boolean;
+  animer?: boolean;
+  rang?: number;
+  lien?: LienKpi;
+  aide?: string;
 }) {
   const toneClasses = {
     primary: "bg-primary/10 text-primary",
@@ -303,21 +421,55 @@ function KpiCard({
     success: "bg-success/10 text-success",
   }[tone];
 
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">{title}</div>
-            <div className="text-2xl md:text-3xl font-bold text-foreground mt-1">
-              {loading ? "—" : value}
-            </div>
+  // Seules les valeurs numériques se prêtent au décompte ; les valeurs
+  // formatées (« 3,4 j », « 72 % ») s'affichent telles quelles.
+  const estNombre = typeof value === "number";
+  const compte = useCompteur(estNombre ? (value as number) : 0, Boolean(animer) && estNombre);
+  const affichage = loading ? "—" : estNombre ? compte : value;
+
+  const contenu = (
+    <CardContent className="p-5">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <span className="truncate">{title}</span>
+            {lien && (
+              <ArrowUpRight className="h-3 w-3 shrink-0 opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
+            )}
           </div>
-          <div className={`h-10 w-10 rounded-md flex items-center justify-center ${toneClasses}`}>
-            <Icon className="h-5 w-5" />
+          <div className="text-2xl md:text-3xl font-bold text-foreground mt-1 tabular-nums">
+            {affichage}
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <div
+          className={`h-10 w-10 rounded-md flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${toneClasses}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </CardContent>
+  );
+
+  const apparition = "animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-backwards";
+  const retard = ["", "delay-75", "delay-100", "delay-150", "delay-200", "delay-300"][rang ?? 0] ?? "";
+
+  if (!lien) {
+    return (
+      <Card className={`overflow-hidden group ${apparition} ${retard}`}>{contenu}</Card>
+    );
+  }
+
+  return (
+    <Link
+      to={lien.to}
+      search={lien.search}
+      title={aide}
+      aria-label={aide}
+      className={`group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${apparition} ${retard}`}
+    >
+      <Card className="overflow-hidden h-full transition-all duration-200 hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] cursor-pointer">
+        {contenu}
+      </Card>
+    </Link>
   );
 }
