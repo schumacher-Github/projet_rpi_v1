@@ -345,3 +345,30 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.notifications n
   WHERE n.user_id = (SELECT u.id FROM auth.users u WHERE u.email = 'e.biloa@pad.cm')
 );
+
+-- ---------------------------------------------------------------------
+-- 6. Géolocalisation de démonstration
+-- ---------------------------------------------------------------------
+-- Positions de référence des infrastructures (secteur portuaire de
+-- Douala) et emplacements exacts relevés sur place pour quelques demandes.
+UPDATE public.infrastructures AS i SET latitude = v.lat, longitude = v.lng
+FROM (VALUES
+  ('BAT-A',   4.047420, 9.694310),
+  ('QUAI-1',  4.052180, 9.688640),
+  ('ENTR-B',  4.058930, 9.683720),
+  ('RES-EAU', 4.050300, 9.690800),
+  ('EQ-GRUE', 4.052910, 9.687450),
+  ('BAT-C',   4.048650, 9.692180)
+) AS v(code, lat, lng)
+WHERE i.code = v.code AND i.latitude IS NULL;
+
+UPDATE public.demandes AS d
+SET latitude = v.lat, longitude = v.lng, precision_m = v.prec
+FROM (VALUES
+  ('DEM-2026-0041', 4.052640, 9.687910, 6.0),
+  ('DEM-2026-0040', 4.058410, 9.683950, 8.5),
+  ('DEM-2026-0039', 4.047510, 9.694180, 12.0),
+  ('DEM-2026-0034', 4.049870, 9.691420, 5.0),
+  ('DEM-2026-0035', 4.047380, 9.694420, 9.0)
+) AS v(reference, lat, lng, prec)
+WHERE d.reference = v.reference AND d.latitude IS NULL;

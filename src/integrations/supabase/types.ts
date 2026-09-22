@@ -32,6 +32,9 @@ export type Database = {
           technicien_id: string | null
           titre: string
           updated_at: string
+          latitude: number | null
+          longitude: number | null
+          precision_m: number | null
         }
         Insert: {
           commentaire_resolution?: string | null
@@ -50,6 +53,9 @@ export type Database = {
           technicien_id?: string | null
           titre: string
           updated_at?: string
+          latitude?: number | null
+          longitude?: number | null
+          precision_m?: number | null
         }
         Update: {
           commentaire_resolution?: string | null
@@ -68,6 +74,9 @@ export type Database = {
           technicien_id?: string | null
           titre?: string
           updated_at?: string
+          latitude?: number | null
+          longitude?: number | null
+          precision_m?: number | null
         }
         Relationships: [
           {
@@ -168,6 +177,8 @@ export type Database = {
           nom: string
           type: Database["public"]["Enums"]["type_infrastructure"]
           updated_at: string
+          latitude: number | null
+          longitude: number | null
         }
         Insert: {
           code: string
@@ -178,6 +189,8 @@ export type Database = {
           nom: string
           type?: Database["public"]["Enums"]["type_infrastructure"]
           updated_at?: string
+          latitude?: number | null
+          longitude?: number | null
         }
         Update: {
           code?: string
@@ -188,6 +201,8 @@ export type Database = {
           nom?: string
           type?: Database["public"]["Enums"]["type_infrastructure"]
           updated_at?: string
+          latitude?: number | null
+          longitude?: number | null
         }
         Relationships: []
       }

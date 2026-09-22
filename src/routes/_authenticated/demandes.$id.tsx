@@ -40,6 +40,7 @@ import {
 } from "@/lib/rpi-helpers";
 import { notifyUser, sendAssignmentEmail } from "@/lib/notifications";
 import { exportDemandePdf } from "@/lib/export-pdf";
+import { formatDecimal, lienGoogleMaps, lienItineraire, positionDeReference } from "@/lib/geolocalisation";
 
 export const Route = createFileRoute("/_authenticated/demandes/$id")({
   head: () => ({ meta: [{ title: "Demande — RPI-PAD" }] }),
@@ -76,7 +77,7 @@ function DemandeDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("demandes")
-        .select("*, infrastructures(code, nom, localisation)")
+        .select("*, infrastructures(*)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -222,8 +223,11 @@ function DemandeDetail() {
       code: string;
       nom: string;
       localisation: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
     };
   }).infrastructures;
+  const position = positionDeReference(demande, infra);
 
   // ✅ Demande verrouillée = plus d'affectation possible
   const isVerrouillee = STATUTS_VERROUILLES.includes(demande.statut as Statut);
@@ -517,6 +521,34 @@ function DemandeDetail() {
                       {infra.localisation}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Emplacement exact de l'intervention */}
+              {position && (
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                    <MapPin className="h-3 w-3 inline mr-1" />
+                    Emplacement
+                  </div>
+                  <div className="font-mono text-xs">
+                    {formatDecimal(position.latitude, position.longitude)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {position.source === "demande"
+                      ? position.precision_m != null
+                        ? `Relevé sur place, à ${Math.round(position.precision_m)} m près`
+                        : "Position saisie avec la demande"
+                      : "Position de référence de l'infrastructure"}
+                  </div>
+                  <div className="flex gap-3 mt-1 text-xs">
+                    <a href={lienGoogleMaps(position.latitude, position.longitude)} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+                      Voir sur Google Maps
+                    </a>
+                    <a href={lienItineraire(position.latitude, position.longitude)} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+                      Itinéraire
+                    </a>
+                  </div>
                 </div>
               )}
 

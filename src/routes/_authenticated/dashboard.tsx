@@ -166,7 +166,7 @@ function Dashboard() {
 
       {/* Indicateurs. Chaque carte qui porte un lien ouvre la liste des
           demandes déjà filtrée sur ce qu'elle compte. */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           title={canManage ? "Total demandes" : "Mes demandes"}
           value={kpis.total}
@@ -431,13 +431,16 @@ function KpiCard({
     <CardContent className="p-5">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <span className="truncate">{title}</span>
+          {/* Le libellé passe à la ligne plutôt que d'être tronqué : sur grand
+              écran, les six cartes tiennent sur une seule rangée et chacune
+              devient trop étroite pour « Délai moyen résolution ». */}
+          <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-start gap-1 leading-snug">
+            <span>{title}</span>
             {lien && (
               <ArrowUpRight className="h-3 w-3 shrink-0 opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
             )}
           </div>
-          <div className="text-2xl md:text-3xl font-bold text-foreground mt-1 tabular-nums">
+          <div className="text-2xl md:text-3xl font-bold text-foreground mt-1 tabular-nums whitespace-nowrap">
             {affichage}
           </div>
         </div>

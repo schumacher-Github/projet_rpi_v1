@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, LocateFixed, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PRIORITES, PRIORITE_LABELS, type Priorite } from "@/lib/rpi-helpers";
 import { notifySupervisors } from "@/lib/notifications";
+import { lienGoogleMaps, obtenirPositionActuelle } from "@/lib/geolocalisation";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/demandes/nouvelle")({
@@ -34,6 +35,8 @@ const schema = z.object({
   priorite: z.enum(["urgente", "normale", "planifiee"]),
   infrastructure_id: z.string().uuid().nullable(),
   date_souhaitee: z.string().optional(),
+  latitude: z.number().min(-90, "Latitude invalide").max(90, "Latitude invalide").nullable(),
+  longitude: z.number().min(-180, "Longitude invalide").max(180, "Longitude invalide").nullable(),
 });
 
 function NouvelleDemande() {
@@ -46,6 +49,41 @@ function NouvelleDemande() {
   const [priorite, setPriorite] = useState<Priorite>("normale");
   const [infraId, setInfraId] = useState<string>("none");
   const [dateSouhaitee, setDateSouhaitee] = useState("");
+  // Emplacement exact de l'intervention (facultatif)
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [precision, setPrecision] = useState<number | null>(null);
+  const [localisationEnCours, setLocalisationEnCours] = useState(false);
+
+  const localiser = async () => {
+    setLocalisationEnCours(true);
+    try {
+      const p = await obtenirPositionActuelle();
+      setLatitude(String(p.latitude));
+      setLongitude(String(p.longitude));
+      setPrecision(p.precision_m ?? null);
+      toast.success(
+        p.precision_m != null
+          ? `Position relevée à ${Math.round(p.precision_m)} m près`
+          : "Position relevée"
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setLocalisationEnCours(false);
+    }
+  };
+
+  const effacerPosition = () => {
+    setLatitude("");
+    setLongitude("");
+    setPrecision(null);
+  };
+
+  const versNombre = (v: string) => {
+    const t = v.trim().replace(",", ".");
+    return t === "" ? null : Number(t);
+  };
 
   const { data: infras = [] } = useQuery({
     queryKey: ["infrastructures-select"],
@@ -68,11 +106,18 @@ function NouvelleDemande() {
       priorite,
       infrastructure_id: infraId === "none" ? null : infraId,
       date_souhaitee: dateSouhaitee || undefined,
+      latitude: versNombre(latitude),
+      longitude: versNombre(longitude),
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
     }
+    if ((parsed.data.latitude == null) !== (parsed.data.longitude == null)) {
+      toast.error("Renseignez la latitude et la longitude, ou aucune des deux.");
+      return;
+    }
+    const aUnePosition = parsed.data.latitude != null && parsed.data.longitude != null;
 
     setSubmitting(true);
     const { data, error } = await supabase
@@ -84,6 +129,14 @@ function NouvelleDemande() {
         infrastructure_id: parsed.data.infrastructure_id,
         date_souhaitee: parsed.data.date_souhaitee || null,
         demandeur_id: user.id,
+        // Les colonnes de position ne sont envoyées que si une position existe
+        ...(aUnePosition
+          ? {
+              latitude: parsed.data.latitude,
+              longitude: parsed.data.longitude,
+              precision_m: precision,
+            }
+          : {}),
       })
       .select("id")
       .single();
@@ -202,6 +255,68 @@ function NouvelleDemande() {
                 value={dateSouhaitee}
                 onChange={(e) => setDateSouhaitee(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-dashed p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Label className="flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-primary" /> Emplacement exact (optionnel)
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sur place, relevez la position GPS : le technicien sera guidé jusqu'au point exact.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={localiser} disabled={localisationEnCours}>
+                  {localisationEnCours ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  ) : (
+                    <LocateFixed className="h-4 w-4 mr-1.5" />
+                  )}
+                  Utiliser ma position actuelle
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="latitude" className="text-xs">Latitude</Label>
+                  <Input
+                    id="latitude"
+                    inputMode="decimal"
+                    value={latitude}
+                    onChange={(e) => { setLatitude(e.target.value); setPrecision(null); }}
+                    placeholder="Ex : 4.052180"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="longitude" className="text-xs">Longitude</Label>
+                  <Input
+                    id="longitude"
+                    inputMode="decimal"
+                    value={longitude}
+                    onChange={(e) => { setLongitude(e.target.value); setPrecision(null); }}
+                    placeholder="Ex : 9.688640"
+                  />
+                </div>
+              </div>
+              {versNombre(latitude) != null && versNombre(longitude) != null &&
+                !Number.isNaN(versNombre(latitude)) && !Number.isNaN(versNombre(longitude)) && (
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  {precision != null && (
+                    <span className="text-muted-foreground">Précision : environ {Math.round(precision)} m</span>
+                  )}
+                  <a
+                    href={lienGoogleMaps(versNombre(latitude)!, versNombre(longitude)!)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline underline-offset-2"
+                  >
+                    Vérifier sur Google Maps
+                  </a>
+                  <button type="button" onClick={effacerPosition} className="inline-flex items-center text-muted-foreground hover:text-foreground">
+                    <X className="h-3 w-3 mr-0.5" /> Effacer
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">
