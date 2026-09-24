@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Wrench,
   ArrowUpRight,
+  ActivitySquare,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -37,6 +38,18 @@ import {
   type Priorite,
   type Statut,
 } from "@/lib/rpi-helpers";
+
+interface EquipementSurveille {
+  id: string;
+  code: string;
+  nom: string;
+  interventions_12m: number;
+  interventions_6m: number;
+  urgences_12m: number;
+  cout_12m: number | string | null;
+  derniere_intervention: string;
+  intervalle_moyen_jours: number | null;
+}
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord — RPI-PAD" }] }),
@@ -138,6 +151,27 @@ function Dashboard() {
       })),
     [demandes]
   );
+
+  // ── Équipements à surveiller ──────────────────────────────────────────
+  // Première lecture des tendances : les infrastructures qui concentrent
+  // les interventions sur les douze derniers mois. Le regroupement est
+  // fait par la base (vue vue_equipements_surveiller), pas ici : la page
+  // ne reçoit que quelques lignes, déjà comptées et déjà triées.
+  const { data: aSurveiller = [] } = useQuery({
+    queryKey: ["equipements-surveiller"],
+    enabled: canManage,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vue_equipements_surveiller" as never)
+        .select("*")
+        .limit(5);
+      // La vue peut ne pas exister sur une base qui n'a pas encore reçu la
+      // migration : dans ce cas l'encadré disparaît au lieu de tout casser.
+      if (error) return [] as EquipementSurveille[];
+      return (data ?? []) as unknown as EquipementSurveille[];
+    },
+  });
 
   // Urgences actives : demandes de priorité "urgente" non encore closes.
   const urgencesActives = demandes
@@ -324,6 +358,68 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Équipements à surveiller */}
+      {canManage && aSurveiller.length > 0 && (
+        <Card className="animate-in fade-in slide-in-from-bottom-3 duration-500 delay-150">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ActivitySquare className="h-5 w-5 text-primary" />
+                Équipements à surveiller
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Infrastructures les plus sollicitées sur les douze derniers mois. Au-delà de
+                trois interventions, un remplacement mérite d'être étudié.
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {aSurveiller.map((e) => {
+              const aRisque = e.interventions_12m >= 3;
+              const cout = Number(e.cout_12m ?? 0);
+              return (
+                <Link
+                  key={e.id}
+                  to="/infrastructures/$id"
+                  params={{ id: e.id }}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/30"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">{e.code}</span>
+                      <span className="truncate">{e.nom}</span>
+                      {aRisque && (
+                        <Badge variant="outline" className="border-destructive/40 text-destructive">
+                          À surveiller
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {e.intervalle_moyen_jours
+                        ? `Une intervention tous les ${e.intervalle_moyen_jours} jours en moyenne`
+                        : "Interventions trop récentes pour dégager un rythme"}
+                      {e.urgences_12m > 0 &&
+                        ` · ${e.urgences_12m} urgence${e.urgences_12m > 1 ? "s" : ""}`}
+                      {` · dernière le ${formatDate(e.derniere_intervention)}`}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold">
+                      {e.interventions_12m} intervention{e.interventions_12m > 1 ? "s" : ""}
+                    </div>
+                    {cout > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        {cout.toLocaleString("fr-FR")} FCFA cumulés
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Demandes récentes */}
       <Card className="animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -431,9 +527,6 @@ function KpiCard({
     <CardContent className="p-5">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          {/* Le libellé passe à la ligne plutôt que d'être tronqué : sur grand
-              écran, les six cartes tiennent sur une seule rangée et chacune
-              devient trop étroite pour « Délai moyen résolution ». */}
           <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-start gap-1 leading-snug">
             <span>{title}</span>
             {lien && (
