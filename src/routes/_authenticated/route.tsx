@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { UserMenu } from "@/components/user-menu";
 import { NotificationBell } from "@/components/notification-bell";
+import { RechercheGlobale } from "@/components/recherche-globale";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -30,6 +31,7 @@ function AuthenticatedLayout() {
         <SidebarInset className="flex flex-col">
           <header className="h-14 flex items-center gap-3 border-b border-border bg-card px-4 sticky top-0 z-10">
             <SidebarTrigger />
+            <RechercheGlobale />
             <div className="flex-1" />
             <NotificationBell />
             <UserMenu />
